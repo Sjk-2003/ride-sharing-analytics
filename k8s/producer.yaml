@@ -1,0 +1,32 @@
+# The Dockerised ride producer, running as a pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ride-producer
+  labels:
+    app: ride-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ride-producer
+  template:
+    metadata:
+      labels:
+        app: ride-producer
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: producer
+          image: ride-producer:v1
+          imagePullPolicy: Never     # image is built locally on the EC2, not downloaded
+          env:
+            - { name: KAFKA_BOOTSTRAP, value: "kafka:9092" }
+            - { name: TOPIC, value: "ride-requests" }
+            - { name: RIDES_PER_SECOND, value: "2" }
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"

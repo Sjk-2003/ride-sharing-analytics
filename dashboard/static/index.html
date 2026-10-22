@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SwiftRide Bengaluru — Live Operations Center</title>
+  <link rel="stylesheet" href="style.css?v=2">
+  <!-- Chart.js (pinned version). If it can't load, numbers and tables still work. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">S</div>
+    <div>
+      <h1>SwiftRide Bengaluru</h1>
+      <p class="sub">Live Operations Center · bikes, autos &amp; cabs across 10 zones</p>
+    </div>
+  </div>
+  <div class="live" id="live" data-state="wait">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="live-label" id="liveLabel">Connecting…</span>
+    <span class="live-age" id="liveAge"></span>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist" id="tabs">
+  <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+  <button role="tab" data-tab="ops">Operations</button>
+  <button role="tab" data-tab="pricing">Pricing</button>
+  <button role="tab" data-tab="drivers">Driver Relations</button>
+  <button role="tab" data-tab="city">City &amp; Fleet</button>
+  <button role="tab" data-tab="how">How it works</button>
+</nav>
+
+<main>
+  <!-- 1. OVERVIEW -->
+  <section class="panel" id="tab-overview">
+    <div class="kpis">
+      <div class="kpi"><span class="kpi-label">Total ride requests</span><span class="kpi-value" id="kTotal">–</span></div>
+      <div class="kpi"><span class="kpi-label">Completed rides</span><span class="kpi-value" id="kCompleted">–</span></div>
+      <div class="kpi"><span class="kpi-label">Cancellation rate</span><span class="kpi-value" id="kCancel">–</span></div>
+      <div class="kpi"><span class="kpi-label">Revenue</span><span class="kpi-value" id="kRevenue">–</span></div>
+      <div class="kpi"><span class="kpi-label">Average fare</span><span class="kpi-value" id="kAvg">–</span></div>
+      <div class="kpi accent"><span class="kpi-label">Rides / min (live)</span><span class="kpi-value" id="kRpm">–</span></div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h2>Live ride feed <small>newest first, straight from Kafka</small></h2>
+        <ul class="feed" id="feed"></ul>
+      </div>
+      <div class="card">
+        <h2>What management should know</h2>
+        <ul class="insights" id="insOverview"></ul>
+        <h3>One insight per team</h3>
+        <ul class="insights compact" id="insAll"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. OPERATIONS -->
+  <section class="panel" id="tab-ops" hidden>
+    <div class="team"><b>Team:</b> Operations Manager · <b>Decision:</b> how many drivers to put on the road, and when</div>
+    <div class="card">
+      <h2>Ride requests by hour of day</h2>
+      <div class="legend"><span class="sw s1"></span>Normal hour <span class="sw s2"></span>Surge hour (1.5× fare)</div>
+      <div class="chart tall"><canvas id="cHours"></canvas></div>
+    </div>
+    <div class="card"><h2>Insight → action</h2><ul class="insights" id="insOps"></ul></div>
+  </section>
+
+  <!-- 3. PRICING -->
+  <section class="panel" id="tab-pricing" hidden>
+    <div class="team"><b>Team:</b> Pricing &amp; Revenue · <b>Decision:</b> when to apply surge pricing, and how much</div>
+    <div class="grid-2">
+      <div class="card">
+        <h2>Surge vs normal</h2>
+        <div class="split-label"><span>Share of revenue</span></div>
+        <div class="split" id="splitRev"></div>
+        <div class="split-label"><span>Share of completed rides</span></div>
+        <div class="split" id="splitRides"></div>
+        <div class="legend"><span class="sw s2"></span>Surge hours <span class="sw s1"></span>Normal hours</div>
+        <div class="mini-kpis">
+          <div><span class="kpi-label">Avg surge fare</span><span class="kpi-value sm" id="pSurgeAvg">–</span></div>
+          <div><span class="kpi-label">Avg normal fare</span><span class="kpi-value sm" id="pNormalAvg">–</span></div>
+        </div>
+      </div>
+      <div class="card"><h2>Insight → action</h2><ul class="insights" id="insPricing"></ul></div>
+    </div>
+    <div class="card">
+      <h2>Revenue by hour of day</h2>
+      <div class="legend"><span class="sw s1"></span>Normal hour <span class="sw s2"></span>Surge hour</div>
+      <div class="chart tall"><canvas id="cRevHours"></canvas></div>
+    </div>
+  </section>
+
+  <!-- 4. DRIVER RELATIONS -->
+  <section class="panel" id="tab-drivers" hidden>
+    <div class="team"><b>Team:</b> Driver Relations · <b>Decision:</b> who to reward, and who needs support</div>
+    <div class="grid-2 wide-left">
+      <div class="card">
+        <h2>Top 10 drivers <small>by completed rides</small></h2>
+        <div class="table-wrap">
+          <table class="board">
+            <thead><tr><th>#</th><th>Driver</th><th class="num">Rides</th><th class="num">Earnings</th><th class="num">Km</th><th class="bar-col"></th></tr></thead>
+            <tbody id="drivers"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card"><h2>Insight → action</h2><ul class="insights" id="insDrivers"></ul></div>
+    </div>
+  </section>
+
+  <!-- 5. CITY & FLEET -->
+  <section class="panel" id="tab-city" hidden>
+    <div class="team"><b>Team:</b> City Expansion &amp; Fleet · <b>Decision:</b> where to grow, and which vehicles to add</div>
+    <div class="grid-2">
+      <div class="card">
+        <h2>Revenue by pickup zone</h2>
+        <div class="chart tall"><canvas id="cZones"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Bengaluru zone map <small>bubble size = revenue</small></h2>
+        <div id="map" class="map"></div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h2>Fleet mix</h2>
+        <div class="table-wrap">
+          <table class="board">
+            <thead><tr><th>Vehicle</th><th class="num">Rides</th><th class="num">Revenue</th><th class="num">Avg fare</th><th class="bar-col">Revenue share</th></tr></thead>
+            <tbody id="vehicles"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card"><h2>Insight → action</h2><ul class="insights" id="insCity"></ul></div>
+    </div>
+  </section>
+
+  <!-- 6. HOW IT WORKS -->
+  <section class="panel" id="tab-how" hidden>
+    <div class="card">
+      <h2>Pipeline <small>badges are live</small></h2>
+      <div class="pipeline">
+        <div class="cluster">
+          <div class="cluster-title">AWS EC2 · Kubernetes (k3s)</div>
+          <div class="nodes">
+            <div class="node"><b>Ride app (Producer pod)</b><span>Python · Docker</span><em class="badge" id="bProducer">…</em></div>
+            <div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><b>Kafka pod</b><span>topic ride-requests</span><em class="badge" id="bKafka">…</em></div>
+            <div class="arrow" aria-hidden="true">→</div>
+            <div class="node"><b>This website (Dashboard pod)</b><span>FastAPI · every 2 s</span><em class="badge" id="bWeb">…</em></div>
+          </div>
+        </div>
+        <div class="layers">
+          <div class="layer speed"><b>Speed layer</b> Kafka → website: live numbers within seconds</div>
+          <div class="layer batch"><b>Batch layer</b> Kafka → Databricks (Structured Streaming) → Delta Bronze/Gold → S3 data lake <em class="badge neutral">runs on demand</em></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Who does what for the business</h2>
+      <ul class="roles">
+        <li><b>Producer</b>: stands in for the SwiftRide app, sending every ride request as it happens (2 per second).</li>
+        <li><b>Kafka</b>: the company's event backbone. It stores every ride for 72 hours, so many teams can read the same data.</li>
+        <li><b>Kubernetes on EC2</b>: keeps each service running and restarts it if it crashes.</li>
+        <li><b>Live website</b>: the control room for today's decisions (drivers, surge, rewards).</li>
+        <li><b>Databricks</b>: cleans and stores the history (Delta tables) and computes the official Gold reports.</li>
+        <li><b>S3</b>: a cheap, durable data lake for finance reports, audits and future machine learning.</li>
+      </ul>
+      <p class="muted" id="healthLine"></p>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">SwiftRide Bengaluru is a fictional company · data is simulated by the producer · <span id="footInfo"></span></footer>
+<script src="app.js?v=2"></script>
+</body>
+</html>

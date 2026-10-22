@@ -1,0 +1,13 @@
+#!/bin/bash
+# Quick health check: pods, memory, latest producer logs, messages in Kafka, website health
+kubectl get pods
+echo; free -h
+echo; echo "== Pod memory limits / restarts (OOMKilled = out of memory) =="
+kubectl get pods -o custom-columns='POD:.metadata.name,RESTARTS:.status.containerStatuses[0].restartCount,LAST_EXIT:.status.containerStatuses[0].lastState.terminated.reason'
+echo; echo "== Producer logs (last 5) =="; kubectl logs deployment/ride-producer --tail=5
+echo; echo "== 3 messages from Kafka topic =="
+kubectl exec deployment/kafka -- /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 --topic ride-requests --from-beginning --max-messages 3
+echo; echo "== SwiftRide website health (http://localhost:30080/api/health) =="
+curl -s --max-time 5 http://localhost:30080/api/health || echo "Website not answering on port 30080"
+echo

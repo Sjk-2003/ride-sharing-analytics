@@ -1,0 +1,77 @@
+# Kafka (single broker, KRaft mode = no ZooKeeper) tuned for a 2 GB t3.small.
+# __EXTERNAL_ADDRESS__ is filled in by the deploy script:
+#   laptop -> the tunnel address (Pinggy or ngrok, e.g. abcde.a.free.pinggy.link:41234)
+#   EC2    -> <EC2_PUBLIC_IP>:30094
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  labels:
+    app: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      enableServiceLinks: false   # stops Kubernetes injecting KAFKA_* vars that confuse Kafka
+      containers:
+        - name: kafka
+          image: apache/kafka:3.8.0
+          ports:
+            - containerPort: 9092    # inside the cluster (producer pod uses this)
+            - containerPort: 30094   # outside world (Databricks uses this)
+          env:
+            - { name: KAFKA_NODE_ID, value: "1" }
+            - { name: KAFKA_PROCESS_ROLES, value: "broker,controller" }
+            - { name: KAFKA_LISTENERS, value: "PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:30094" }
+            - { name: KAFKA_ADVERTISED_LISTENERS, value: "PLAINTEXT://kafka:9092,EXTERNAL://__EXTERNAL_ADDRESS__" }
+            - { name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP, value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT" }
+            - { name: KAFKA_CONTROLLER_LISTENER_NAMES, value: "CONTROLLER" }
+            - { name: KAFKA_INTER_BROKER_LISTENER_NAME, value: "PLAINTEXT" }
+            - { name: KAFKA_CONTROLLER_QUORUM_VOTERS, value: "1@localhost:9093" }
+            - { name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR, value: "1" }
+            - { name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR, value: "1" }
+            - { name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR, value: "1" }
+            - { name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS, value: "0" }
+            - { name: KAFKA_NUM_PARTITIONS, value: "1" }
+            - { name: KAFKA_LOG_RETENTION_HOURS, value: "72" }
+            - { name: KAFKA_HEAP_OPTS, value: "-Xmx384m -Xms384m" }   # keep Java memory small
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "800Mi"
+---
+# Internal address: other pods reach Kafka at kafka:9092
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+spec:
+  selector:
+    app: kafka
+  ports:
+    - name: internal
+      port: 9092
+      targetPort: 9092
+---
+# External port 30094 on the machine (laptop: localhost:30094, which the tunnel forwards; EC2: public IP)
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-external
+spec:
+  type: NodePort
+  selector:
+    app: kafka
+  ports:
+    - name: external
+      port: 30094
+      targetPort: 30094
+      nodePort: 30094

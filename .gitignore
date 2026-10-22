@@ -1,0 +1,23 @@
+# Secrets: never commit these
+*.pem
+*.ppk
+*accessKeys*.csv
+*_accessKeys.csv
+*credentials*
+.env
+.env.*
+.aws/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Downloads / archives
+*.zip
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
